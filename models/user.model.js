@@ -122,7 +122,8 @@ const userSchema = new mongoose.Schema(
 
     profilePicture: {
       type: String,
-      default: "default-avatar.png",
+      default:
+        "https://static.vecteezy.com/system/resources/previews/054/078/735/non_2x/gamer-avatar-with-headphones-and-controller-vector.jpg",
       validate: {
         validator: function (url) {
           if (!url || url === "default-avatar.png") return true;

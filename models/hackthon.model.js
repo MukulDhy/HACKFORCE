@@ -44,12 +44,6 @@ const hackathonSchema = new Schema(
       min: 1,
       max: 10,
     },
-    // Additional fields
-    organizerId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
     venue: {
       type: String,
       trim: true,
@@ -87,19 +81,18 @@ const hackathonSchema = new Schema(
       type: Number,
       min: 1,
     },
-    requirements: {
-      type: String,
-      trim: true,
-    },
-    rules: {
-      type: String,
-      trim: true,
-    },
-    contactEmail: {
-      type: String,
-      trim: true,
-      lowercase: true,
-    },
+    requirements: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    rules: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     bannerImage: {
       type: String, // URL to banner image
       trim: true,
