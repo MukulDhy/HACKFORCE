@@ -14,7 +14,6 @@ const teamMemberSchema = new Schema(
       ref: "User",
       required: true,
     },
-    // Additional fields
     role: {
       type: String,
       enum: [
@@ -35,15 +34,6 @@ const teamMemberSchema = new Schema(
       type: String,
       enum: ["active", "left", "removed"],
       default: "active",
-    },
-    invitedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-    },
-    invitationStatus: {
-      type: String,
-      enum: ["pending", "accepted", "declined"],
-      default: "accepted",
     },
   },
   {

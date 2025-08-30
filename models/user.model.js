@@ -1,5 +1,6 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+import mongoose from "mongoose";
+const { Schema } = mongoose;
+import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
@@ -138,7 +139,6 @@ const userSchema = new mongoose.Schema(
       },
     },
 
-    // Additional useful fields
     isEmailVerified: {
       type: Boolean,
       default: false,
@@ -151,6 +151,11 @@ const userSchema = new mongoose.Schema(
 
     lastLogin: {
       type: Date,
+    },
+    currentHackathonId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Hackathon",
+      default: null,
     },
 
     resetPasswordToken: String,
@@ -245,4 +250,5 @@ userSchema.virtual("profileCompletion").get(function () {
 // Ensure virtual fields are serialized
 userSchema.set("toJSON", { virtuals: true });
 
-module.exports = mongoose.model("User", userSchema);
+const user = mongoose.model("User", userSchema);
+export default user;

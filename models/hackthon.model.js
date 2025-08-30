@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 // Hackathon Schema
@@ -97,6 +97,10 @@ const hackathonSchema = new Schema(
       type: String, // URL to banner image
       trim: true,
     },
+    waD: {
+      type: Date,
+      required: true,
+    },
     status: {
       type: String,
       enum: [
@@ -104,10 +108,15 @@ const hackathonSchema = new Schema(
         "registration_open",
         "registration_closed",
         "ongoing",
+        "winnertoannouced",
         "completed",
         "cancelled",
       ],
       default: "upcoming",
+    },
+    reason: {
+      type: String,
+      default: "",
     },
   },
   {

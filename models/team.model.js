@@ -1,20 +1,14 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 // Team Schema
 const teamSchema = new Schema(
   {
     hackathonId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Hackathon",
       required: true,
     },
-    problemStatement: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    // Additional fields
     name: {
       type: String,
       required: true,
@@ -26,21 +20,6 @@ const teamSchema = new Schema(
       trim: true,
       maxLength: 500,
     },
-    leaderId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    isRecruiting: {
-      type: Boolean,
-      default: true,
-    },
-    requiredSkills: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
     projectRepo: {
       type: String,
       trim: true,
@@ -82,8 +61,6 @@ const teamSchema = new Schema(
 );
 // Indexes
 teamSchema.index({ hackathonId: 1 });
-teamSchema.index({ leaderId: 1 });
-teamSchema.index({ isRecruiting: 1 });
 teamSchema.index({ submissionStatus: 1 });
 
 const Team = mongoose.model("Team", teamSchema);
