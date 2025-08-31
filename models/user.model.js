@@ -162,7 +162,7 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpires: Date,
   },
   {
-    timestamps: true, // Automatically adds createdAt and updatedAt
+    timestamps: true,
     toJSON: {
       transform: function (doc, ret) {
         delete ret.password;
@@ -200,19 +200,31 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// // Instance method to generate password reset token
-// userSchema.methods.createPasswordResetToken = function () {
-//   const resetToken = require("crypto").randomBytes(32).toString("hex");
+// Instance method to generate password reset token (fixed)
+userSchema.methods.createPasswordResetToken = function () {
+  const resetToken = crypto.randomBytes(32).toString("hex");
 
-//   this.resetPasswordToken = require("crypto")
-//     .createHash("sha256")
-//     .update(resetToken)
-//     .digest("hex");
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
 
-//   this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-//   return resetToken;
-// };
+  return resetToken;
+};
+
+// Instance method to generate JWT token (missing)
+userSchema.methods.generateToken = function () {
+  return jwt.sign(
+    {
+      id: this._id,
+      email: this.email,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRE || "7d" }
+  );
+};
 
 // Static method to find users by skill
 userSchema.statics.findBySkill = function (skill) {
@@ -250,5 +262,5 @@ userSchema.virtual("profileCompletion").get(function () {
 // Ensure virtual fields are serialized
 userSchema.set("toJSON", { virtuals: true });
 
-const user = mongoose.model("User", userSchema);
-export default user;
+const User = mongoose.model("User", userSchema);
+export default User;
