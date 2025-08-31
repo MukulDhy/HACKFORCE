@@ -1,23 +1,49 @@
-const User = require("../models/user.model");
-const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
+import User from "../models/user.model.js";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+
+import { OAuth2Client } from "google-auth-library"; // Missing import
+import sendMail from "../utils/sendMail.js"; // Missing import
+
+// Initialize Google OAuth client (missing)
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Helper function to send token response (missing)
+const sendTokenResponse = (user, statusCode, res, message) => {
+  const token = user.generateToken(); // This method should be defined in your User model
+
+  const options = {
+    expires: new Date(
+      Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000
+    ),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  };
+
+  res
+    .status(statusCode)
+    .cookie("token", token, options)
+    .json({
+      success: true,
+      message,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isEmailVerified: user.isEmailVerified,
+        profilePicture: user.profilePicture,
+      },
+    });
+};
 
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
-exports.register = async (req, res) => {
+export const register = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      password,
-      age,
-      skills,
-      experience,
-      github,
-      linkedin,
-      phone,
-    } = req.body;
+    const userData = req.body;
+    const { email } = userData; // Missing destructuring
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -30,20 +56,17 @@ exports.register = async (req, res) => {
 
     // Create new user
     const user = await User.create({
-      name,
-      email,
-      password,
-      age,
-      skills: skills || [],
-      experience,
-      github,
-      linkedin,
-      phone,
+      ...userData,
     });
 
     // Send verification email (optional)
-    await sendVerificationEmail(user);
-
+    // await sendVerificationEmail(user); // Uncomment if you want to send verification email
+    await sendMail({
+      email: user.email,
+      subject: "Mail from HackMate",
+      data: { name: user.name, email: user.email },
+      template: "welcome_mail.ejs",
+    });
     sendTokenResponse(user, 201, res, "User registered successfully");
   } catch (error) {
     console.error("Registration error:", error);
@@ -67,7 +90,7 @@ exports.register = async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -124,7 +147,7 @@ exports.login = async (req, res) => {
 // @desc    Google OAuth login
 // @route   POST /api/auth/google
 // @access  Public
-exports.googleAuth = async (req, res) => {
+export const googleAuth = async (req, res) => {
   try {
     const { credential } = req.body;
 
@@ -185,7 +208,7 @@ exports.googleAuth = async (req, res) => {
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
-exports.getMe = async (req, res) => {
+export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
@@ -205,7 +228,7 @@ exports.getMe = async (req, res) => {
 // @desc    Update user profile
 // @route   PUT /api/auth/profile
 // @access  Private
-exports.updateProfile = async (req, res) => {
+export const updateProfile = async (req, res) => {
   try {
     const allowedFields = [
       "name",
@@ -258,7 +281,7 @@ exports.updateProfile = async (req, res) => {
 // @desc    Change password
 // @route   PUT /api/auth/change-password
 // @access  Private
-exports.changePassword = async (req, res) => {
+export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -311,7 +334,7 @@ exports.changePassword = async (req, res) => {
 // @desc    Forgot password
 // @route   POST /api/auth/forgot-password
 // @access  Public
-exports.forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -385,7 +408,7 @@ exports.forgotPassword = async (req, res) => {
 // @desc    Reset password
 // @route   PUT /api/auth/reset-password/:token
 // @access  Public
-exports.resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
@@ -441,7 +464,7 @@ exports.resetPassword = async (req, res) => {
 // @desc    Send email verification
 // @route   POST /api/auth/send-verification
 // @access  Private
-exports.sendEmailVerification = async (req, res) => {
+export const sendEmailVerification = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
@@ -470,7 +493,7 @@ exports.sendEmailVerification = async (req, res) => {
 // @desc    Verify email
 // @route   GET /api/auth/verify-email/:token
 // @access  Public
-exports.verifyEmail = async (req, res) => {
+export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
 
@@ -506,7 +529,7 @@ exports.verifyEmail = async (req, res) => {
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
-exports.logout = async (req, res) => {
+export const logout = async (req, res) => {
   try {
     res.cookie("token", "none", {
       expires: new Date(Date.now() + 10 * 1000),
@@ -529,7 +552,7 @@ exports.logout = async (req, res) => {
 // @desc    Deactivate account
 // @route   PUT /api/auth/deactivate
 // @access  Private
-exports.deactivateAccount = async (req, res) => {
+export const deactivateAccount = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
@@ -556,7 +579,13 @@ exports.deactivateAccount = async (req, res) => {
 
 // Helper function to send verification email
 const sendVerificationEmail = async (user) => {
-  const verificationToken = generateToken(user._id);
+  // This should use a proper method from your User model
+  const verificationToken = jwt.sign(
+    { userId: user._id },
+    process.env.JWT_SECRET,
+    { expiresIn: "1d" }
+  );
+
   const verificationURL = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
 
   const message = `
