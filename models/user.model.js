@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 const { Schema } = mongoose;
 import bcrypt from "bcryptjs";
-
+import jwt from "jsonwebtoken";
 const userSchema = new mongoose.Schema(
   {
     email: {
@@ -156,6 +156,11 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Hackathon",
       default: null,
+    },
+    role: {
+      type: String,
+      required: true,
+      default: "user",
     },
 
     resetPasswordToken: String,
