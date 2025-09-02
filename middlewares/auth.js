@@ -1,8 +1,8 @@
-﻿const jwt = require("jsonwebtoken");
-const User = require("../models/user.model");
+﻿import User from "../models/user.model.js";
+import jwt from "jsonwebtoken";
 
 // Protect routes - verify JWT token
-exports.protect = async (req, res, next) => {
+export const protect = async (req, res, next) => {
   try {
     let token;
 
@@ -31,7 +31,7 @@ exports.protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       // Get user from token
-      const user = await User.findById(decoded.userId);
+      const user = await User.findById(decoded.id);
 
       if (!user) {
         return res.status(401).json({
@@ -66,7 +66,7 @@ exports.protect = async (req, res, next) => {
 };
 
 // Grant access to specific roles
-exports.authorize = (...roles) => {
+export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
@@ -79,7 +79,7 @@ exports.authorize = (...roles) => {
 };
 
 // Check if user is email verified
-exports.requireEmailVerification = (req, res, next) => {
+export const requireEmailVerification = (req, res, next) => {
   if (!req.user.isEmailVerified) {
     return res.status(403).json({
       success: false,
@@ -90,7 +90,7 @@ exports.requireEmailVerification = (req, res, next) => {
 };
 
 // Optional authentication - doesn't fail if no token
-exports.optionalAuth = async (req, res, next) => {
+export const optionalAuth = async (req, res, next) => {
   try {
     let token;
 

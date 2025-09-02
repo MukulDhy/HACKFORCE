@@ -1,5 +1,5 @@
-// middleware/error.js
-const logger = require("../utils/logger");
+import { ErrorCodes } from "../utils/responseHandler.js";
+import logger from "../utils/logger.js";
 
 const errorHandler = (err, req, res, next) => {
   // Log error for debugging
@@ -8,18 +8,21 @@ const errorHandler = (err, req, res, next) => {
 
   let error = { ...err };
   error.message = err.message;
+  error.errorCode = ErrorCodes.INTERNAL_SERVER_ERROR;
 
   // Mongoose bad ObjectId
   if (err.name === "CastError") {
-    const message = "Resource not found";
-    error = { message, statusCode: 404 };
+    error.message = "Resource not found";
+    error.statusCode = 404;
+    error.errorCode = ErrorCodes.NOT_FOUND;
   }
 
   // Mongoose duplicate key
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue)[0];
-    const message = `Duplicate field value entered: ${field}`;
-    error = { message, statusCode: 400 };
+    error.message = `Duplicate field value entered: ${field}`;
+    error.statusCode = 400;
+    error.errorCode = ErrorCodes.DUPLICATE_ENTRY;
   }
 
   // Mongoose validation error
@@ -27,24 +30,31 @@ const errorHandler = (err, req, res, next) => {
     const message = Object.values(err.errors)
       .map((val) => val.message)
       .join(", ");
-    error = { message, statusCode: 400 };
+    error.message = message;
+    error.statusCode = 400;
+    error.errorCode = ErrorCodes.VALIDATION_ERROR;
   }
 
   // JWT errors
   if (err.name === "JsonWebTokenError") {
-    const message = "Invalid token";
-    error = { message, statusCode: 401 };
+    error.message = "Invalid token";
+    error.statusCode = 401;
+    error.errorCode = ErrorCodes.TOKEN_INVALID;
   }
 
   if (err.name === "TokenExpiredError") {
-    const message = "Token expired";
-    error = { message, statusCode: 401 };
+    error.message = "Token expired";
+    error.statusCode = 401;
+    error.errorCode = ErrorCodes.TOKEN_EXPIRED;
   }
 
+  // Send standardized error response
   res.status(error.statusCode || 500).json({
     success: false,
-    error: error.message || "Server Error",
+    data: null,
+    message: error.message || "Server Error",
+    errorCode: error.errorCode || ErrorCodes.INTERNAL_SERVER_ERROR,
   });
 };
 
-module.exports = errorHandler;
+export default errorHandler;

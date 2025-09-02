@@ -1,23 +1,37 @@
 import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import dotenv from "dotenv";
+dotenv.config({ path: "../config/config.env" });
+import { OAuth2Client } from "google-auth-library";
+import sendMail from "../utils/sendMail.js";
+import { sendResponse, ErrorCodes } from "../utils/responseHandler.js";
+import {
+  ValidationError,
+  UnauthorizedError,
+  NotFoundError,
+  AppError,
+} from "../utils/AppError.js";
 
-import { OAuth2Client } from "google-auth-library"; // Missing import
-import sendMail from "../utils/sendMail.js"; // Missing import
-
-// Initialize Google OAuth client (missing)
+// Initialize Google OAuth client
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Helper function to send token response (missing)
+// Helper function to send token response
 const sendTokenResponse = (user, statusCode, res, message) => {
-  const token = user.generateToken(); // This method should be defined in your User model
+  const token = user.generateToken();
 
   const options = {
-    expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000
-    ),
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+  };
+
+  const userData = {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    isEmailVerified: user.isEmailVerified,
+    profilePicture: user.profilePicture,
   };
 
   res
@@ -25,33 +39,62 @@ const sendTokenResponse = (user, statusCode, res, message) => {
     .cookie("token", token, options)
     .json({
       success: true,
+      data: { user: userData, token },
       message,
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        isEmailVerified: user.isEmailVerified,
-        profilePicture: user.profilePicture,
-      },
+      errorCode: ErrorCodes.SUCCESS,
     });
+};
+
+// Helper function to send verification email
+const sendVerificationEmail = async (user) => {
+  try {
+    const verificationToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    const verificationURL = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
+
+    const message = `
+      <h2>Email Verification</h2>
+      <p>Please click the link below to verify your email address:</p>
+      <a href="${verificationURL}" style="display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
+      <p>If you didn't create this account, please ignore this email.</p>
+    `;
+
+    await sendMail({
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Verify Your Email Address",
+      html: message,
+    });
+  } catch (error) {
+    console.error("Email verification send error:", error);
+    throw new AppError(
+      "Failed to send verification email",
+      500,
+      ErrorCodes.INTERNAL_SERVER_ERROR
+    );
+  }
 };
 
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
-export const register = async (req, res) => {
+export const register = async (req, res, next) => {
   try {
     const userData = req.body;
-    const { email } = userData; // Missing destructuring
+    const { email } = userData;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "User already exists with this email",
-      });
+      throw new AppError(
+        "User already exists with this email",
+        400,
+        ErrorCodes.DUPLICATE_ENTRY
+      );
     }
 
     // Create new user
@@ -59,75 +102,62 @@ export const register = async (req, res) => {
       ...userData,
     });
 
-    // Send verification email (optional)
-    // await sendVerificationEmail(user); // Uncomment if you want to send verification email
-    await sendMail({
-      email: user.email,
-      subject: "Mail from HackMate",
-      data: { name: user.name, email: user.email },
-      template: "welcome_mail.ejs",
-    });
-    sendTokenResponse(user, 201, res, "User registered successfully");
-  } catch (error) {
-    console.error("Registration error:", error);
-
-    if (error.name === "ValidationError") {
-      const messages = Object.values(error.errors).map((err) => err.message);
-      return res.status(400).json({
-        success: false,
-        message: "Validation Error",
-        errors: messages,
+    // Send welcome email
+    try {
+      const data = { user: { name: user.name, email: user.email } };
+      const res = await sendMail({
+        email: user.email,
+        subject: "Mail from HackMate",
+        data,
+        template: "welcome_mail.ejs",
       });
+      console.log("EMAIL : ", 
+        res);
+    } catch (emailError) {
+      // Log email error but don't fail the registration
+      console.error("Email sending failed:", emailError);
     }
 
-    res.status(500).json({
-      success: false,
-      message: "Server error during registration",
-    });
+    sendTokenResponse(user, 201, res, "User registered successfully");
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((err) => err.message);
+      next(new ValidationError(messages.join(", ")));
+    } else {
+      next(error);
+    }
   }
 };
 
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
     // Validate input
     if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide email and password",
-      });
+      throw new ValidationError("Please provide email and password");
     }
 
     // Find user and include password for comparison
     const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
+      throw new UnauthorizedError("Invalid credentials");
     }
 
     // Check if account is active
     if (!user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: "Account has been deactivated",
-      });
+      throw new UnauthorizedError("Account has been deactivated");
     }
 
     // Check password
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
+      throw new UnauthorizedError("Invalid credentials");
     }
 
     // Update last login
@@ -136,26 +166,19 @@ export const login = async (req, res) => {
 
     sendTokenResponse(user, 200, res, "Login successful");
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error during login",
-    });
+    next(error);
   }
 };
 
 // @desc    Google OAuth login
 // @route   POST /api/auth/google
 // @access  Public
-export const googleAuth = async (req, res) => {
+export const googleAuth = async (req, res, next) => {
   try {
     const { credential } = req.body;
 
     if (!credential) {
-      return res.status(400).json({
-        success: false,
-        message: "Google credential is required",
-      });
+      throw new ValidationError("Google credential is required");
     }
 
     // Verify Google token
@@ -197,38 +220,37 @@ export const googleAuth = async (req, res) => {
 
     sendTokenResponse(user, 200, res, "Google authentication successful");
   } catch (error) {
-    console.error("Google auth error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Google authentication failed",
-    });
+    next(error);
   }
 };
 
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
-export const getMe = async (req, res) => {
+export const getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
 
-    res.status(200).json({
-      success: true,
-      user,
-    });
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    sendResponse(
+      res,
+      200,
+      { user },
+      "User retrieved successfully",
+      ErrorCodes.SUCCESS
+    );
   } catch (error) {
-    console.error("Get user error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    next(error);
   }
 };
 
 // @desc    Update user profile
 // @route   PUT /api/auth/profile
 // @access  Private
-export const updateProfile = async (req, res) => {
+export const updateProfile = async (req, res, next) => {
   try {
     const allowedFields = [
       "name",
@@ -254,42 +276,34 @@ export const updateProfile = async (req, res) => {
       runValidators: true,
     });
 
-    res.status(200).json({
-      success: true,
-      message: "Profile updated successfully",
-      user,
-    });
+    sendResponse(
+      res,
+      200,
+      { user },
+      "Profile updated successfully",
+      ErrorCodes.SUCCESS
+    );
   } catch (error) {
-    console.error("Update profile error:", error);
-
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message);
-      return res.status(400).json({
-        success: false,
-        message: "Validation Error",
-        errors: messages,
-      });
+      next(new ValidationError(messages.join(", ")));
+    } else {
+      next(error);
     }
-
-    res.status(500).json({
-      success: false,
-      message: "Server error during profile update",
-    });
   }
 };
 
 // @desc    Change password
 // @route   PUT /api/auth/change-password
 // @access  Private
-export const changePassword = async (req, res) => {
+export const changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide current password and new password",
-      });
+      throw new ValidationError(
+        "Please provide current password and new password"
+      );
     }
 
     const user = await User.findById(req.user.id).select("+password");
@@ -298,60 +312,45 @@ export const changePassword = async (req, res) => {
     const isCurrentPasswordValid = await user.comparePassword(currentPassword);
 
     if (!isCurrentPasswordValid) {
-      return res.status(400).json({
-        success: false,
-        message: "Current password is incorrect",
-      });
+      throw new UnauthorizedError("Current password is incorrect");
     }
 
     // Update password
     user.password = newPassword;
     await user.save();
 
-    res.status(200).json({
-      success: true,
-      message: "Password changed successfully",
-    });
+    sendResponse(
+      res,
+      200,
+      null,
+      "Password changed successfully",
+      ErrorCodes.SUCCESS
+    );
   } catch (error) {
-    console.error("Change password error:", error);
-
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message);
-      return res.status(400).json({
-        success: false,
-        message: "Validation Error",
-        errors: messages,
-      });
+      next(new ValidationError(messages.join(", ")));
+    } else {
+      next(error);
     }
-
-    res.status(500).json({
-      success: false,
-      message: "Server error during password change",
-    });
   }
 };
 
 // @desc    Forgot password
 // @route   POST /api/auth/forgot-password
 // @access  Public
-export const forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide email address",
-      });
+      throw new ValidationError("Please provide email address");
     }
 
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found with this email",
-      });
+      throw new NotFoundError("User not found with this email");
     }
 
     // Generate reset token
@@ -372,17 +371,20 @@ export const forgotPassword = async (req, res) => {
     `;
 
     try {
-      await transporter.sendMail({
+      await sendMail({
         from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         to: user.email,
         subject: "Password Reset Request",
         html: message,
       });
 
-      res.status(200).json({
-        success: true,
-        message: "Password reset email sent",
-      });
+      sendResponse(
+        res,
+        200,
+        null,
+        "Password reset email sent",
+        ErrorCodes.SUCCESS
+      );
     } catch (error) {
       console.error("Email send error:", error);
 
@@ -391,33 +393,27 @@ export const forgotPassword = async (req, res) => {
       user.resetPasswordExpires = undefined;
       await user.save({ validateBeforeSave: false });
 
-      res.status(500).json({
-        success: false,
-        message: "Email could not be sent",
-      });
+      throw new AppError(
+        "Email could not be sent",
+        500,
+        ErrorCodes.INTERNAL_SERVER_ERROR
+      );
     }
   } catch (error) {
-    console.error("Forgot password error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    next(error);
   }
 };
 
 // @desc    Reset password
 // @route   PUT /api/auth/reset-password/:token
 // @access  Public
-export const resetPassword = async (req, res) => {
+export const resetPassword = async (req, res, next) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
 
     if (!password) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide new password",
-      });
+      throw new ValidationError("Please provide new password");
     }
 
     // Hash the token to compare with stored hash
@@ -429,10 +425,7 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired reset token",
-      });
+      throw new UnauthorizedError("Invalid or expired reset token");
     }
 
     // Set new password
@@ -443,57 +436,38 @@ export const resetPassword = async (req, res) => {
 
     sendTokenResponse(user, 200, res, "Password reset successful");
   } catch (error) {
-    console.error("Reset password error:", error);
-
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message);
-      return res.status(400).json({
-        success: false,
-        message: "Validation Error",
-        errors: messages,
-      });
+      next(new ValidationError(messages.join(", ")));
+    } else {
+      next(error);
     }
-
-    res.status(500).json({
-      success: false,
-      message: "Server error during password reset",
-    });
   }
 };
 
 // @desc    Send email verification
 // @route   POST /api/auth/send-verification
 // @access  Private
-export const sendEmailVerification = async (req, res) => {
+export const sendEmailVerification = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
 
     if (user.isEmailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is already verified",
-      });
+      throw new ValidationError("Email is already verified");
     }
 
     await sendVerificationEmail(user);
 
-    res.status(200).json({
-      success: true,
-      message: "Verification email sent",
-    });
+    sendResponse(res, 200, null, "Verification email sent", ErrorCodes.SUCCESS);
   } catch (error) {
-    console.error("Send verification error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    next(error);
   }
 };
 
 // @desc    Verify email
 // @route   GET /api/auth/verify-email/:token
 // @access  Public
-export const verifyEmail = async (req, res) => {
+export const verifyEmail = async (req, res, next) => {
   try {
     const { token } = req.params;
 
@@ -504,55 +478,67 @@ export const verifyEmail = async (req, res) => {
     const user = await User.findById(decoded.userId);
 
     if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid verification token",
-      });
+      throw new UnauthorizedError("Invalid verification token");
     }
 
     user.isEmailVerified = true;
     await user.save({ validateBeforeSave: false });
 
-    res.status(200).json({
-      success: true,
-      message: "Email verified successfully",
-    });
+    sendResponse(
+      res,
+      200,
+      null,
+      "Email verified successfully",
+      ErrorCodes.SUCCESS
+    );
   } catch (error) {
-    console.error("Email verification error:", error);
-    res.status(400).json({
-      success: false,
-      message: "Invalid or expired verification token",
-    });
+    if (error.name === "TokenExpiredError") {
+      throw new UnauthorizedError("Verification token has expired");
+    } else if (error.name === "JsonWebTokenError") {
+      throw new UnauthorizedError("Invalid verification token");
+    }
+    next(error);
+  }
+};
+
+// @desc    Verify profile
+// @route   GET /api/auth/verify-profile
+// @access  Private
+export const verifyingProfile = async (req, res, next) => {
+  try {
+    const user = req.user;
+    sendResponse(
+      res,
+      200,
+      { user },
+      "Token verification successful",
+      ErrorCodes.SUCCESS
+    );
+  } catch (error) {
+    throw new UnauthorizedError("Verification Token Failed");
   }
 };
 
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
-export const logout = async (req, res) => {
+export const logout = async (req, res, next) => {
   try {
     res.cookie("token", "none", {
       expires: new Date(Date.now() + 10 * 1000),
       httpOnly: true,
     });
 
-    res.status(200).json({
-      success: true,
-      message: "Logged out successfully",
-    });
+    sendResponse(res, 200, null, "Logged out successfully", ErrorCodes.SUCCESS);
   } catch (error) {
-    console.error("Logout error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error during logout",
-    });
+    next(error);
   }
 };
 
 // @desc    Deactivate account
 // @route   PUT /api/auth/deactivate
 // @access  Private
-export const deactivateAccount = async (req, res) => {
+export const deactivateAccount = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
 
@@ -564,41 +550,14 @@ export const deactivateAccount = async (req, res) => {
       httpOnly: true,
     });
 
-    res.status(200).json({
-      success: true,
-      message: "Account deactivated successfully",
-    });
+    sendResponse(
+      res,
+      200,
+      null,
+      "Account deactivated successfully",
+      ErrorCodes.SUCCESS
+    );
   } catch (error) {
-    console.error("Deactivate account error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    next(error);
   }
-};
-
-// Helper function to send verification email
-const sendVerificationEmail = async (user) => {
-  // This should use a proper method from your User model
-  const verificationToken = jwt.sign(
-    { userId: user._id },
-    process.env.JWT_SECRET,
-    { expiresIn: "1d" }
-  );
-
-  const verificationURL = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
-
-  const message = `
-    <h2>Email Verification</h2>
-    <p>Please click the link below to verify your email address:</p>
-    <a href="${verificationURL}" style="display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
-    <p>If you didn't create this account, please ignore this email.</p>
-  `;
-
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-    to: user.email,
-    subject: "Verify Your Email Address",
-    html: message,
-  });
 };

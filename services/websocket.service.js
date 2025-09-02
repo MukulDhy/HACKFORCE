@@ -1,12 +1,12 @@
-const WebSocket = require("ws");
-const jwt = require("jsonwebtoken");
-const logger = require("../utils/logger");
-const config = require("../config/config");
-const User = require("../models/user.model");
-const Team = require("../models/team.model");
-const Message = require("../models/message.model");
-const Notification = require("../models/notification.model");
-const Hackathon = require("../models/hackthon.model");
+import { WebSocketServer } from "ws";
+import jwt from "jsonwebtoken";
+import logger from "../utils/logger.js";
+import config from "../config/config.js";
+import User from "../models/user.model.js";
+import Team from "../models/team.model.js";
+import Message from "../models/message.model.js";
+import Notification from "../models/notification.model.js";
+import Hackathon from "../models/hackthon.model.js";
 
 class WebSocketService {
   constructor() {
@@ -20,7 +20,8 @@ class WebSocketService {
   }
 
   initialize(server) {
-    this.wss = new WebSocket.Server({ noServer: true });
+    // CORRECTED: Use WebSocketServer instead of WebSocket.Server
+    this.wss = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", (request, socket, head) => {
       this.handleUpgrade(request, socket, head).catch((err) => {
@@ -64,7 +65,7 @@ class WebSocketService {
       }
 
       const decoded = await new Promise((resolve, reject) => {
-        jwt.verify(token, config.jwt.secret, (err, decoded) => {
+        jwt.verify(token, config.JWT_SECRET, (err, decoded) => {
           if (err) reject(err);
           else resolve(decoded);
         });
@@ -480,7 +481,8 @@ class WebSocketService {
 
   sendToUser(userId, data) {
     const client = this.clients.get(userId);
-    if (!client || client.readyState !== WebSocket.OPEN) return false;
+    // CORRECTED: Use WebSocketServer instead of WebSocket
+    if (!client || client.readyState !== this.wss.OPEN) return false;
 
     try {
       client.send(JSON.stringify(data));
@@ -716,7 +718,8 @@ class WebSocketService {
     return teamMemberIds.filter(
       (userId) =>
         this.clients.has(userId) &&
-        this.clients.get(userId).readyState === WebSocket.OPEN
+        // CORRECTED: Use WebSocketServer instead of WebSocket
+        this.clients.get(userId).readyState === this.wss.OPEN
     );
   }
 
@@ -801,4 +804,5 @@ class WebSocketService {
   }
 }
 
-module.exports = new WebSocketService();
+const webSocketService = new WebSocketService();
+export default webSocketService;
