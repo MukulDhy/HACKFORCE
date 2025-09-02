@@ -27,6 +27,9 @@ const hackathonSchema = new Schema(
       type: Date,
       required: true,
     },
+    winnerAnnouncementDate: {
+      type: Date,
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -77,6 +80,10 @@ const hackathonSchema = new Schema(
         trim: true,
       },
     ],
+    totalMembersJoined: {
+      type: Number,
+      default: 0,
+    },
     maxRegistrations: {
       type: Number,
       min: 1,
@@ -97,10 +104,39 @@ const hackathonSchema = new Schema(
       type: String, // URL to banner image
       trim: true,
     },
-    waD: {
+
+    // ✅ Newly added fields (all optional)
+    evaluationCriteria: [
+      {
+        criterion: { type: String },
+        weight: { type: Number },
+      },
+    ],
+    submissionDeadline: {
       type: Date,
-      required: true,
     },
+    submissionFormat: {
+      type: String, // e.g., GitHub repo, PPT, video
+    },
+    organizer: {
+      name: { type: String },
+      contactEmail: { type: String },
+      contactNumber: { type: String },
+      organization: { type: String },
+    },
+    faqs: [
+      {
+        question: { type: String },
+        answer: { type: String },
+      },
+    ],
+    socialLinks: {
+      website: { type: String },
+      linkedin: { type: String },
+      twitter: { type: String },
+      discord: { type: String },
+    },
+
     status: {
       type: String,
       enum: [
@@ -108,7 +144,7 @@ const hackathonSchema = new Schema(
         "registration_open",
         "registration_closed",
         "ongoing",
-        "winnertoannouced",
+        "winner_to_announced",
         "completed",
         "cancelled",
       ],
