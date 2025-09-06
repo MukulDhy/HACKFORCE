@@ -12,7 +12,7 @@ import compression from "compression";
 import errorHandler from "./middlewares/error.js";
 import authRouter from "./routes/auth.routes.js";
 import webSocketService from "./services/websocket.service.js";
-
+import hackathonRouter from "./routes/hackthon.routes.js";
 // Required for __dirname in ES modules
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -45,19 +45,19 @@ app.get("/", (req, res) => {
     success: true,
     data: { message: "API is running" },
     message: "Welcome to the API",
-    errorCode: 0
+    errorCode: 0,
   });
 });
 
 app.use("/api/user", authRouter);
-
+app.use("/api/hackathons", hackathonRouter);
 // 404 handler
 app.use((req, res, next) => {
   res.status(404).json({
     success: false,
     data: null,
     message: `Route not found: ${req.originalUrl}`,
-    errorCode: 3 // NOT_FOUND
+    errorCode: 3, // NOT_FOUND
   });
 });
 

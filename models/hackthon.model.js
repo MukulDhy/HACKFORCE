@@ -70,8 +70,9 @@ const hackathonSchema = new Schema(
         amount: {
           type: Number,
           required: true,
+          default: 0,
         },
-        description: String,
+        rewards: String,
       },
     ],
     tags: [

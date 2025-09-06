@@ -111,8 +111,7 @@ export const register = async (req, res, next) => {
         data,
         template: "welcome_mail.ejs",
       });
-      console.log("EMAIL : ", 
-        res);
+      console.log("EMAIL : ", res);
     } catch (emailError) {
       // Log email error but don't fail the registration
       console.error("Email sending failed:", emailError);
@@ -157,7 +156,7 @@ export const login = async (req, res, next) => {
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedError("Invalid credentials");
+      throw new UnauthorizedError("Invalid Password");
     }
 
     // Update last login
@@ -217,7 +216,6 @@ export const googleAuth = async (req, res, next) => {
         lastLogin: new Date(),
       });
     }
-
     sendTokenResponse(user, 200, res, "Google authentication successful");
   } catch (error) {
     next(error);
