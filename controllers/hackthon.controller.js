@@ -1,4 +1,5 @@
 import Hackathon from "../models/hackthon.model.js";
+import User from "../models/user.model.js";
 
 // @desc    Get all hackathons
 // @route   GET /api/hackathons
@@ -269,47 +270,74 @@ export const createHackathon = async (req, res) => {
 };
 
 // @desc    join hackathon
-// @route   POST /api/join/:id
+// @route   POST /api
 // @access  authorization user only
 export const joinHackathon = async (req, res) => {
   try {
-    const hachtonId = req.params.id;
-    const userHackCurrentID = req.user.currentHackathonId;
+    const hackathonId = req.params.id;
+    const user = await User.findById(req.user._id); // safer than req.user directly
 
-    if (userHackCurrentID !== null) {
-      res.status(401).json({
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        message: `Already into a Hackathon id number : ${userHackCurrentID}`,
+        message: "User not found",
       });
     }
-    const hackathon = await Hackathon.findById(userHackCurrentID);
+
+    if (user.currentHackathonId) {
+      return res.status(400).json({
+        success: false,
+        message: `Already into a Hackathon id number : ${user.currentHackathonId}`,
+      });
+    }
+
+    const hackathon = await Hackathon.findById(hackathonId);
     if (!hackathon) {
       return res.status(404).json({
         success: false,
         message: "Hackathon not found",
       });
     }
+
     if (!hackathon.isActive) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
-        message: "Hackathon not available",
+        message: "Hackathon is not active",
       });
     }
-    const user = await User.findById(req.user._id);
-    // const hackathon =
+
+    // update user
+    user.currentHackathonId = hackathon._id;
+    await user.save();
+
+    // update hackathon participants
+    if (!hackathon.participants) {
+      hackathon.participants = [];
+    }
+    hackathon.participants.push(user._id);
+    await hackathon.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully joined hackathon",
+      data: {
+        user,
+        hackathon,
+      },
+    });
   } catch (error) {
-    console.error("Get hackathon error:", error);
+    console.error("Join hackathon error:", error);
 
     if (error.name === "CastError") {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
-        message: "Hackathon not found",
+        message: "Invalid hackathon ID",
       });
     }
 
     res.status(500).json({
       success: false,
-      message: "Error fetching hackathon",
+      message: "Error joining hackathon",
       error: error.message,
     });
   }

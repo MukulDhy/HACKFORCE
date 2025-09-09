@@ -10,6 +10,7 @@ import {
   getHackathonStats,
   getFeaturedHackathons,
   getHackathonsByTag,
+  joinHackathon,
 } from "../controllers/hackthon.controller.js";
 import { protect, authorize } from "../middlewares/auth.js";
 
@@ -31,5 +32,9 @@ router.get("/admin/stats", getHackathonStats);
 router.put("/:id", updateHackathon);
 router.patch("/:id/status", updateHackathonStatus);
 router.delete("/:id", deleteHackathon);
+
+router.use(protect);
+
+router.post("/:id/join",joinHackathon);
 
 export default router;

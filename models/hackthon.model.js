@@ -137,7 +137,13 @@ const hackathonSchema = new Schema(
       twitter: { type: String },
       discord: { type: String },
     },
-
+    participants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+    ],
     status: {
       type: String,
       enum: [
