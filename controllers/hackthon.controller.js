@@ -320,10 +320,9 @@ export const joinHackathon = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Successfully joined hackathon",
-      data: {
-        user,
+      data: 
         hackathon,
-      },
+
     });
   } catch (error) {
     console.error("Join hackathon error:", error);
@@ -342,6 +341,76 @@ export const joinHackathon = async (req, res) => {
     });
   }
 };
+
+
+export const leaveHackathon = async (req, res) => {
+  try {
+    const hackathonId = req.params.id;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.currentHackathonId) {
+      return res.status(400).json({
+        success: false,
+        message: "You are not part of any hackathon",
+      });
+    }
+
+    // Make sure the user is leaving the hackathon they are in
+    if (user.currentHackathonId.toString() !== hackathonId) {
+      return res.status(400).json({
+        success: false,
+        message: `You are currently in a different hackathon: ${user.currentHackathonId}`,
+      });
+    }
+
+    const hackathon = await Hackathon.findById(hackathonId);
+    if (!hackathon) {
+      return res.status(404).json({
+        success: false,
+        message: "Hackathon not found",
+      });
+    }
+
+    // Remove user from participants
+    hackathon.participants = hackathon.participants.filter(
+      (participantId) => participantId.toString() !== user._id.toString()
+    );
+    await hackathon.save();
+
+    // Clear user's current hackathon
+    user.currentHackathonId = null;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully left hackathon",
+      data: hackathon,
+    });
+  } catch (error) {
+    console.error("Leave hackathon error:", error);
+
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid hackathon ID",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Error leaving hackathon",
+      error: error.message,
+    });
+  }
+};
+
 
 // @desc    Update hackathon
 // @route   PUT /api/hackathons/:id

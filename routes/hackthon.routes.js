@@ -36,5 +36,6 @@ router.delete("/:id", deleteHackathon);
 router.use(protect);
 
 router.post("/:id/join",joinHackathon);
+router.post("/:id/leave",joinHackathon);
 
 export default router;
