@@ -11,6 +11,7 @@ import {
   getFeaturedHackathons,
   getHackathonsByTag,
   joinHackathon,
+  leaveHackathon,
 } from "../controllers/hackthon.controller.js";
 import { protect, authorize } from "../middlewares/auth.js";
 
@@ -35,7 +36,7 @@ router.delete("/:id", deleteHackathon);
 
 router.use(protect);
 
-router.post("/:id/join",joinHackathon);
-router.post("/:id/leave",joinHackathon);
+router.post("/:id/join", joinHackathon);
+router.post("/:id/leave", leaveHackathon);
 
 export default router;
