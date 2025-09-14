@@ -208,7 +208,7 @@ export const createHackathon = async (req, res) => {
     // Determine initial status based on dates
     let status;
     if (regDeadline > now) {
-      status = "upcoming";
+      status = "registration_open";
     } else if (start > now) {
       status = "registration_open";
     } else if (end > now) {
@@ -216,7 +216,13 @@ export const createHackathon = async (req, res) => {
     } else {
       status = "completed";
     }
-
+    const participants = [
+      "68b723514b797de7510da085",
+      "68c663a30e8844c002a0b519",
+      "68c6a7ef7015d3dcc9bc5844",
+      "68c6ae4d7015d3dcc9bc58ab",
+      "68c6a9147015d3dcc9bc586c",
+    ];
     const hackathon = await Hackathon.create({
       title,
       description,
@@ -231,6 +237,7 @@ export const createHackathon = async (req, res) => {
       registrationFee,
       prizes,
       tags,
+      participants,
       maxRegistrations,
       requirements,
       rules,
@@ -320,9 +327,7 @@ export const joinHackathon = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Successfully joined hackathon",
-      data: 
-        hackathon,
-
+      data: hackathon,
     });
   } catch (error) {
     console.error("Join hackathon error:", error);
@@ -341,7 +346,6 @@ export const joinHackathon = async (req, res) => {
     });
   }
 };
-
 
 export const leaveHackathon = async (req, res) => {
   try {
@@ -410,7 +414,6 @@ export const leaveHackathon = async (req, res) => {
     });
   }
 };
-
 
 // @desc    Update hackathon
 // @route   PUT /api/hackathons/:id

@@ -13,9 +13,13 @@ import errorHandler from "./middlewares/error.js";
 import authRouter from "./routes/auth.routes.js";
 import webSocketService from "./services/websocket.service.js";
 import hackathonRouter from "./routes/hackthon.routes.js";
+
+import mongoose from "mongoose";
+
 // Required for __dirname in ES modules
 import { fileURLToPath } from "url";
 import { dirname } from "path";
+import { startScheduler } from "./utils/schedular.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -72,6 +76,7 @@ server.listen(PORT, "0.0.0.0", () => {
 
 // WebSocket service
 webSocketService.initialize(server);
+
 
 // Graceful shutdown
 process.on("unhandledRejection", (err) => {

@@ -1,9 +1,15 @@
 import mongoose from "mongoose";
+import AutoIncrementFactory from "mongoose-sequence";
 const { Schema } = mongoose;
 
 // Hackathon Schema
 const hackathonSchema = new Schema(
   {
+    hackathonId: {
+      type: Number,
+      unique: true,
+      index: true,
+    },
     title: {
       type: String,
       required: true,
@@ -155,7 +161,7 @@ const hackathonSchema = new Schema(
         "completed",
         "cancelled",
       ],
-      default: "upcoming",
+      default: "registration_open",
     },
     reason: {
       type: String,
@@ -167,6 +173,13 @@ const hackathonSchema = new Schema(
     collection: "hackathons",
   }
 );
+
+// Auto-increment hackathonId starting from 100
+const AutoIncrement = AutoIncrementFactory(mongoose);
+hackathonSchema.plugin(AutoIncrement, {
+  inc_field: "hackathonId",
+  start_seq: 100,
+});
 
 // Indexes
 hackathonSchema.index({ startDate: 1 });

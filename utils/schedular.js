@@ -1,10 +1,11 @@
 import cron from "node-cron";
 import mongoose from "mongoose";
-import { sendTeamNotification } from "./emailService.js";
-import Hackathon from "./models/Hackathon.js";
-import Team from "./models/Team.js";
-import TeamMember from "./models/TeamMember.js";
-import User from "./models/User.js";
+import { sendTeamNotification } from "../services/sendTeamEmail.service.js";
+import Hackathon from "../models/hackthon.model.js";
+import Team from "../models/team.model.js";
+import TeamMember from "../models/teamMember.model.js";
+import User from "../models/user.model.js";
+import logger from "./logger.js";
 
 // Scheduler function
 export const startScheduler = (io) => {
@@ -34,10 +35,18 @@ export const startScheduler = (io) => {
       );
 
       for (const hackathon of hackathons) {
+        // Check if there are enough participants
+        if (hackathon.participants.length < hackathon.minTeamSize) {
+          logger.warn("Not enough participants found for the hackathon.");
+          hackathon.status = "cancelled";
+          await hackathon.save();
+          continue;
+        }
         await createTeamsForHackathon(hackathon, io);
       }
     } catch (error) {
       console.error("Scheduler error:", error);
+      logger.error("Scheduler error:", error);
     }
   });
 
@@ -50,8 +59,14 @@ const createTeamsForHackathon = async (hackathon, io) => {
   session.startTransaction();
 
   try {
-    const { participants, maxTeamSize, problemStatements, title, _id } =
-      hackathon;
+    const {
+      participants,
+      maxTeamSize,
+      minTeamSize,
+      problemStatements,
+      title,
+      _id,
+    } = hackathon;
 
     if (!participants || !participants.length) {
       console.log(`No participants for hackathon: ${title}`);
@@ -67,6 +82,19 @@ const createTeamsForHackathon = async (hackathon, io) => {
       return;
     }
 
+    // Calculate optimal team distribution
+    const totalParticipants = participants.length;
+    const optimalTeamCount = Math.ceil(totalParticipants / maxTeamSize);
+    const baseTeamSize = Math.floor(totalParticipants / optimalTeamCount);
+    const remainder = totalParticipants % optimalTeamCount;
+
+    console.log(
+      `Participants: ${totalParticipants}, Min team size: ${minTeamSize}, Max team size: ${maxTeamSize}`
+    );
+    console.log(
+      `Creating ${optimalTeamCount} teams with base size ${baseTeamSize} and ${remainder} extra members`
+    );
+
     // Shuffle participants randomly using Fisher-Yates algorithm
     const shuffledParticipants = [...participants];
     for (let i = shuffledParticipants.length - 1; i > 0; i--) {
@@ -79,12 +107,32 @@ const createTeamsForHackathon = async (hackathon, io) => {
 
     const createdTeams = [];
     const emailPromises = [];
+    let participantIndex = 0;
 
-    // Split participants into teams
-    for (let i = 0; i < shuffledParticipants.length; i += maxTeamSize) {
-      const teamMembers = shuffledParticipants.slice(i, i + maxTeamSize);
+    // Create teams with optimal distribution
+    for (let teamIndex = 0; teamIndex < optimalTeamCount; teamIndex++) {
+      // Determine team size (add extra members to first few teams)
+      const currentTeamSize =
+        teamIndex < remainder ? baseTeamSize + 1 : baseTeamSize;
 
-      // Pick random problem
+      // Ensure team meets minimum size requirement
+      if (currentTeamSize < minTeamSize) {
+        console.log(
+          `Team size ${currentTeamSize} is below minimum requirement ${minTeamSize}`
+        );
+        continue;
+      }
+
+      if (participantIndex >= shuffledParticipants.length) break;
+
+      // Get team members
+      const teamMembers = shuffledParticipants.slice(
+        participantIndex,
+        participantIndex + currentTeamSize
+      );
+      participantIndex += currentTeamSize;
+
+      // Pick random problem statement
       const randomProblemIndex = Math.floor(
         Math.random() * problemStatements.length
       );
@@ -104,6 +152,7 @@ const createTeamsForHackathon = async (hackathon, io) => {
             name: teamName,
             problemStatement: randomProblem,
             submissionStatus: "not_submitted",
+            teamSize: currentTeamSize,
           },
         ],
         { session }
@@ -112,7 +161,7 @@ const createTeamsForHackathon = async (hackathon, io) => {
       // Create team members
       const teamMemberPromises = [];
       for (const [index, member] of teamMembers.entries()) {
-        // First member is the team leader
+        // First member is the team leader, others are developers
         const role = index === 0 ? "leader" : "developer";
 
         teamMemberPromises.push(
@@ -127,6 +176,13 @@ const createTeamsForHackathon = async (hackathon, io) => {
             ],
             { session }
           )
+        );
+
+        // Update user's current hackathon
+        await User.findByIdAndUpdate(
+          member._id,
+          { currentHackathonId: _id },
+          { session }
         );
       }
 
@@ -181,7 +237,32 @@ const createTeamsForHackathon = async (hackathon, io) => {
     session.endSession();
 
     // Send all emails (outside transaction)
-    await Promise.allSettled(emailPromises);
+    const emailResults = await Promise.allSettled(emailPromises);
+
+    // Log email sending results
+    const successfulEmails = emailResults.filter(
+      (r) => r.status === "fulfilled"
+    ).length;
+    const failedEmails = emailResults.filter(
+      (r) => r.status === "rejected"
+    ).length;
+
+    console.log(
+      `Emails sent: ${successfulEmails} successful, ${failedEmails} failed`
+    );
+
+    // Log failed emails for follow-up
+    if (failedEmails > 0) {
+      emailResults.forEach((result, index) => {
+        if (result.status === "rejected") {
+          console.error(
+            `Failed to send email to participant at index ${index}:`,
+            result.reason
+          );
+          logger.error(`Failed to send email to participant: ${result.reason}`);
+        }
+      });
+    }
 
     // Notify all connected clients
     io.to(_id.toString()).emit("teams-formed", {
@@ -189,11 +270,19 @@ const createTeamsForHackathon = async (hackathon, io) => {
       teams: createdTeams,
     });
 
-    console.log(`Created ${createdTeams.length} teams for ${title}`);
+    console.log(
+      `Successfully created ${createdTeams.length} teams for ${title}`
+    );
+    logger.info(
+      `Successfully created ${createdTeams.length} teams for ${title}`
+    );
+
+    return createdTeams;
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
     console.error("Error creating teams for hackathon:", error);
+    logger.error("Error creating teams for hackathon:", error);
     throw error;
   }
 };

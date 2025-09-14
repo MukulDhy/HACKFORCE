@@ -1,7 +1,8 @@
-const nodemailer = require("nodemailer");
-require("dotenv").config({ path: "../config/config.env" });
-const path = require("path");
-const ejs = require("ejs");
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+dotenv.config({ path: "../config/config.env" });
+import path from "path";
+import ejs from "ejs";
 
 const sendMail = async (options) => {
   try {
@@ -38,4 +39,4 @@ const sendMail = async (options) => {
   }
 };
 
-module.exports = sendMail;
+export default sendMail;

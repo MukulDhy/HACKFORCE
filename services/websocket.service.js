@@ -7,6 +7,8 @@ import Team from "../models/team.model.js";
 import Message from "../models/message.model.js";
 import Notification from "../models/notification.model.js";
 import Hackathon from "../models/hackthon.model.js";
+import mongoose from "mongoose";
+import { startScheduler } from "../utils/schedular.js";
 
 class WebSocketService {
   constructor() {
@@ -805,4 +807,9 @@ class WebSocketService {
 }
 
 const webSocketService = new WebSocketService();
+
+mongoose.connection.once("open", () => {
+  console.log("Starting scheduler...");
+  startScheduler(webSocketService);
+});
 export default webSocketService;
