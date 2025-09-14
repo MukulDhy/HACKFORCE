@@ -144,6 +144,9 @@ const createTeamsForHackathon = async (hackathon, io) => {
         .substring(2, 8)
         .toUpperCase()}`;
 
+      // Extract user IDs for teamMember array
+      const teamMemberIds = teamMembers.map(member => member._id);
+
       // Create team document
       const team = await Team.create(
         [
@@ -153,6 +156,7 @@ const createTeamsForHackathon = async (hackathon, io) => {
             problemStatement: randomProblem,
             submissionStatus: "not_submitted",
             teamSize: currentTeamSize,
+            teamMember: teamMemberIds, // Store team members in the team model
           },
         ],
         { session }
@@ -187,11 +191,14 @@ const createTeamsForHackathon = async (hackathon, io) => {
         );
       }
 
-      awaait team.save(teamMember : teamMemberParticipants);
       await Promise.all(teamMemberPromises);
 
       // Populate team with member details
       const populatedTeam = await Team.findById(team[0]._id)
+        .populate({
+          path: "teamMember", // Populate the teamMember field
+          select: "id name email skills",
+        })
         .populate({
           path: "members",
           populate: {

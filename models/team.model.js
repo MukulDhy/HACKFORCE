@@ -9,6 +9,13 @@ const teamSchema = new Schema(
       ref: "Hackathon",
       required: true,
     },
+    teamMember: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+    ],
     name: {
       type: String,
       required: true,
