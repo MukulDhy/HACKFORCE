@@ -36,12 +36,12 @@ export const startScheduler = (io) => {
 
       for (const hackathon of hackathons) {
         // Check if there are enough participants
-        if (hackathon.participants.length < hackathon.minTeamSize) {
-          logger.warn("Not enough participants found for the hackathon.");
-          hackathon.status = "cancelled";
-          await hackathon.save();
-          continue;
-        }
+        // if (hackathon.participants.length < hackathon.minTeamSize) {
+        //   logger.warn("Not enough participants found for the hackathon.");
+        //   hackathon.status = "cancelled";
+        //   await hackathon.save();
+        //   continue;
+        // }
         await createTeamsForHackathon(hackathon, io);
       }
     } catch (error) {
@@ -159,6 +159,7 @@ const createTeamsForHackathon = async (hackathon, io) => {
       );
 
       // Create team members
+      const teamMemberParticipants = [];
       const teamMemberPromises = [];
       for (const [index, member] of teamMembers.entries()) {
         // First member is the team leader, others are developers
@@ -177,7 +178,7 @@ const createTeamsForHackathon = async (hackathon, io) => {
             { session }
           )
         );
-
+        teamMemberParticipants.push(member._id);
         // Update user's current hackathon
         await User.findByIdAndUpdate(
           member._id,
@@ -186,6 +187,7 @@ const createTeamsForHackathon = async (hackathon, io) => {
         );
       }
 
+      awaait team.save(teamMember : teamMemberParticipants);
       await Promise.all(teamMemberPromises);
 
       // Populate team with member details
@@ -202,22 +204,22 @@ const createTeamsForHackathon = async (hackathon, io) => {
       createdTeams.push(populatedTeam);
 
       // Prepare email notifications
-      for (const member of teamMembers) {
-        const teammates = teamMembers
-          .filter((m) => m._id.toString() !== member._id.toString())
-          .map((m) => m.name);
+      // for (const member of teamMembers) {
+      //   const teammates = teamMembers
+      //     .filter((m) => m._id.toString() !== member._id.toString())
+      //     .map((m) => m.name);
 
-        emailPromises.push(
-          sendTeamNotification({
-            email: member.email,
-            name: member.name,
-            hackathonTitle: title,
-            teammates,
-            problemStatement: randomProblem,
-            teamName: teamName,
-          })
-        );
-      }
+      //   emailPromises.push(
+      //     sendTeamNotification({
+      //       email: member.email,
+      //       name: member.name,
+      //       hackathonTitle: title,
+      //       teammates,
+      //       problemStatement: randomProblem,
+      //       teamName: teamName,
+      //     })
+      //   );
+      // }
     }
 
     // Update hackathon status to registration_closed
@@ -265,10 +267,10 @@ const createTeamsForHackathon = async (hackathon, io) => {
     }
 
     // Notify all connected clients
-    io.to(_id.toString()).emit("teams-formed", {
-      hackathonId: _id,
-      teams: createdTeams,
-    });
+    // io.to(_id.toString()).emit("teams-formed", {
+    //   hackathonId: _id,
+    //   teams: createdTeams,
+    // });
 
     console.log(
       `Successfully created ${createdTeams.length} teams for ${title}`
