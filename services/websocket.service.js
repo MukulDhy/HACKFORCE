@@ -5,7 +5,7 @@ import config from "../config/config.js";
 import User from "../models/user.model.js";
 import Team from "../models/team.model.js";
 import Message from "../models/Message.model.js";
-import Notification from "../models/notification.model.js";
+import Notification from "../models/Notification.model.js";
 import Hackathon from "../models/hackthon.model.js";
 import mongoose from "mongoose";
 import { startScheduler } from "../utils/schedular.js";

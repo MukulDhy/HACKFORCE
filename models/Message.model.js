@@ -99,4 +99,7 @@ messageSchema.virtual("isRead").get(function () {
   };
 });
 
-module.exports = mongoose.model("Message", messageSchema);
+const Message =
+  mongoose.models.Message || mongoose.model("Message", messageSchema);
+
+module.exports = Message;
