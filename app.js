@@ -13,8 +13,8 @@ import errorHandler from "./middlewares/error.js";
 import authRouter from "./routes/auth.routes.js";
 import webSocketService from "./services/websocket.service.js";
 import hackathonRouter from "./routes/hackthon.routes.js";
-
-import mongoose from "mongoose";
+import teamRouter from "./routes/team.routes.js";
+import messageRouter from "./routes/message.routes.js";
 
 // Required for __dirname in ES modules
 import { fileURLToPath } from "url";
@@ -55,6 +55,9 @@ app.get("/", (req, res) => {
 
 app.use("/api/user", authRouter);
 app.use("/api/hackathons", hackathonRouter);
+app.use("/teams", teamRouter);
+app.use("/messages", messageRouter);
+
 // 404 handler
 app.use((req, res, next) => {
   res.status(404).json({
@@ -76,7 +79,6 @@ server.listen(PORT, "0.0.0.0", () => {
 
 // WebSocket service
 webSocketService.initialize(server);
-
 
 // Graceful shutdown
 process.on("unhandledRejection", (err) => {
