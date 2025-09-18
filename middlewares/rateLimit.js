@@ -1,7 +1,6 @@
-// middleware/rateLimit.js
-const rateLimit = require("express-rate-limit");
-const config = require("../config/config");
-const logger = require("../utils/logger");
+import rateLimit from "express-rate-limit";
+import config from "../config/config.js";
+import logger from "../utils/logger.js";
 
 const defaultLimiter = rateLimit({
   windowMs: config.RATE_LIMIT_WINDOW, // Default: 15 minutes
@@ -47,8 +46,4 @@ const deviceRegLimiter = rateLimit({
   },
 });
 
-module.exports = {
-  defaultLimiter,
-  authLimiter,
-  deviceRegLimiter,
-};
+export { defaultLimiter, authLimiter, deviceRegLimiter };

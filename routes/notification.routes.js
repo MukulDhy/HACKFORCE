@@ -1,8 +1,9 @@
-const express = require("express");
+import express from "express";
+import Notification from "../models/Notification.model.js";
+import { authenticate } from "../middlewares/auth.js";
+import logger from "../utils/logger.js";
+
 const router = express.Router();
-const Notification = require("../models/notification.model");
-const { authenticate } = require("../middleware/auth");
-const logger = require("../utils/logger");
 
 // Get user notifications
 router.get("/notifications", authenticate, async (req, res) => {
@@ -261,4 +262,4 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-module.exports = router;
+export default router;

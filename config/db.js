@@ -1,7 +1,6 @@
-// config/db.js
-require("colors");
-const mongoose = require("mongoose");
-const logger = require("../utils/logger");
+import colors from "colors";
+import mongoose from "mongoose";
+import logger from "../utils/logger.js";
 
 const connectDB = async () => {
   try {
@@ -23,4 +22,4 @@ const connectDB = async () => {
   }
 };
 
-module.exports = connectDB;
+export default connectDB;

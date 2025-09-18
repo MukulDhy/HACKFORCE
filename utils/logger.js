@@ -1,6 +1,5 @@
-// utils/logger.js
-const winston = require("winston");
-const config = require("../config/config");
+import winston from "winston";
+import config from "../config/config.js";
 
 const logger = winston.createLogger({
   level: config.LOG_LEVEL,
@@ -38,4 +37,4 @@ logger.stream = {
   },
 };
 
-module.exports = logger;
+export default logger;

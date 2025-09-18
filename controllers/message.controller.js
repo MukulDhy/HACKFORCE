@@ -1,5 +1,5 @@
-const Message = require("../models/Message.model");
-const mongoose = require("mongoose");
+import Message from "../models/Message.model.js";
+import mongoose from "mongoose";
 
 // Create a new message
 const createMessage = async (req, res) => {
@@ -377,7 +377,7 @@ const searchMessages = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   createMessage,
   getTeamMessages,
   getMessageById,

@@ -1,4 +1,4 @@
-const whatsappService = require("../services/whatsapp.service");
+import whatsappService from "../services/whatsapp.service.js";
 
 const sendMessage = async (req, res) => {
   try {
@@ -29,7 +29,4 @@ const receiveMessage = (req, res) => {
   res.status(200).send();
 };
 
-module.exports = {
-  sendMessage,
-  receiveMessage,
-};
+export { sendMessage, receiveMessage };

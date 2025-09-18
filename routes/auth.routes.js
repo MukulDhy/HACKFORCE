@@ -1,5 +1,5 @@
-const express = require("express");
-const {
+import express from "express";
+import {
   register,
   login,
   googleAuth,
@@ -13,9 +13,9 @@ const {
   logout,
   deactivateAccount,
   verifyingProfile,
-} = require("../controllers/auth.controller");
-const { protect } = require("../middlewares/auth");
-const { validateRegistration, validateLogin } = require("../utils/validators");
+} from "../controllers/auth.controller.js";
+import { protect } from "../middlewares/auth.js";
+import { validateRegistration, validateLogin } from "../utils/validators.js";
 
 const router = express.Router();
 
@@ -37,4 +37,4 @@ router.post("/send-verification", sendEmailVerification);
 router.post("/logout", logout);
 router.put("/deactivate", deactivateAccount);
 
-module.exports = router;
+export default router;

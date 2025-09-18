@@ -1,18 +1,18 @@
-const express = require("express");
-const http = require("http");
-const WebSocket = require("ws");
-const mongoose = require("mongoose");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-const nodemailer = require("nodemailer");
-const cron = require("node-cron");
-const multer = require("multer");
-const path = require("path");
-const cors = require("cors");
-const rateLimit = require("express-rate-limit");
-const helmet = require("helmet");
-const compression = require("compression");
-const { v4: uuidv4 } = require("uuid");
+import express from "express";
+import http from "http";
+import WebSocket from "ws";
+import mongoose from "mongoose";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
+import cron from "node-cron";
+import multer from "multer";
+import path from "path";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import compression from "compression";
+import { v4 as uuidv4 } from "uuid";
 
 const app = express();
 const server = http.createServer(app);
@@ -1511,4 +1511,4 @@ process.on("SIGINT", () => {
   });
 });
 
-module.exports = { app, server, wss };
+export { app, server, wss };

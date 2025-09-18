@@ -1,6 +1,5 @@
-const express = require("express");
-const router = express.Router();
-const {
+import express from "express";
+import {
   createMessage,
   getTeamMessages,
   getMessageById,
@@ -9,7 +8,9 @@ const {
   markMessageAsRead,
   getUnreadMessagesCount,
   searchMessages,
-} = require("../controllers/message.controller");
+} from "../controllers/message.controller.js";
+
+const router = express.Router();
 
 // @route   POST /api/messages
 // @desc    Create a new message
@@ -53,4 +54,4 @@ router.delete("/:messageId", deleteMessage);
 // @access  Private
 router.post("/:messageId/read", markMessageAsRead);
 
-module.exports = router;
+export default router;

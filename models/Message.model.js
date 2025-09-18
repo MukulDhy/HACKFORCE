@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const messageSchema = new Schema(
@@ -102,4 +102,4 @@ messageSchema.virtual("isRead").get(function () {
 const Message =
   mongoose.models.Message || mongoose.model("Message", messageSchema);
 
-module.exports = Message;
+export default Message;

@@ -1,7 +1,7 @@
-const { body, validationResult } = require("express-validator");
+import { body, validationResult } from "express-validator";
 
 // Handle validation errors
-const handleValidationErrors = (req, res, next) => {
+export const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -19,7 +19,7 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 // Registration validation
-exports.validateRegistration = [
+export const validateRegistration = [
   body("name")
     .trim()
     .isLength({ min: 2, max: 50 })
@@ -76,7 +76,7 @@ exports.validateRegistration = [
 ];
 
 // Login validation
-exports.validateLogin = [
+export const validateLogin = [
   body("email")
     .isEmail()
     .withMessage("Please provide a valid email")
@@ -88,7 +88,7 @@ exports.validateLogin = [
 ];
 
 // Profile update validation
-exports.validateProfileUpdate = [
+export const validateProfileUpdate = [
   body("name")
     .optional()
     .trim()
@@ -138,7 +138,7 @@ exports.validateProfileUpdate = [
 ];
 
 // Password change validation
-exports.validatePasswordChange = [
+export const validatePasswordChange = [
   body("currentPassword")
     .notEmpty()
     .withMessage("Current password is required"),
@@ -155,7 +155,7 @@ exports.validatePasswordChange = [
 ];
 
 // Email validation
-exports.validateEmail = [
+export const validateEmail = [
   body("email")
     .isEmail()
     .withMessage("Please provide a valid email")
@@ -165,7 +165,7 @@ exports.validateEmail = [
 ];
 
 // Password reset validation
-exports.validatePasswordReset = [
+export const validatePasswordReset = [
   body("password")
     .isLength({ min: 8 })
     .withMessage("Password must be at least 8 characters long")
@@ -178,7 +178,7 @@ exports.validatePasswordReset = [
 ];
 
 // Google auth validation
-exports.validateGoogleAuth = [
+export const validateGoogleAuth = [
   body("credential").notEmpty().withMessage("Google credential is required"),
 
   handleValidationErrors,

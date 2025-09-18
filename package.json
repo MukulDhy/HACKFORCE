@@ -1,5 +1,6 @@
 {
   "name": "hack-mate-server",
+  "type": "module",
   "version": "1.0.0",
   "description": "Backend API for hack mate server",
   "main": "app.js",

@@ -1,6 +1,10 @@
 import path from "path";
 import dotenv from "dotenv";
-dotenv.config({ path: path.resolve("../.env") });
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const config = {
   // Server
@@ -62,4 +66,4 @@ if (!config.JWT_SECRET) {
   throw new Error("JWT_SECRET must be defined in environment variables");
 }
 
-module.exports = config;
+export default config;
