@@ -1,4 +1,4 @@
-const Message = require("../models/message.model");
+const Message = require("../models/Message.model");
 const mongoose = require("mongoose");
 
 // Create a new message
