@@ -1,4 +1,4 @@
-import sendMail from "../utils/sendMail.Js";
+import sendMail from "../utils/sendMail.js";
 
 export const sendTeamNotification = async ({
   email,
