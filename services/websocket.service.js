@@ -1,4 +1,4 @@
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws"; // ADDED: Import WebSocket for readyState comparison
 import jwt from "jsonwebtoken";
 import logger from "../utils/logger.js";
 import config from "../config/config.js";
@@ -19,10 +19,11 @@ class WebSocketService {
     this.pingInterval = null;
     this.timerInterval = null;
     this.activeHackathons = new Set();
+    this.rateLimitMap = new Map(); // MOVED: Rate limit map to constructor
+    this.messageRateLimit = new Map(); // MOVED: Message rate limit to constructor
   }
 
   initialize(server) {
-    // CORRECTED: Use WebSocketServer instead of WebSocket.Server
     this.wss = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", (request, socket, head) => {
@@ -33,7 +34,7 @@ class WebSocketService {
     });
 
     this.setupEventHandlers();
-    // this.startTimerBroadcast();
+    this.startCleanupInterval(); // ADDED: Start cleanup interval
     logger.info("WebSocket server initialized");
   }
 
@@ -230,6 +231,7 @@ class WebSocketService {
     try {
       const { teamId, text } = message;
 
+      // Validate input
       if (!teamId || !text || text.trim().length === 0) {
         return this.sendToUser(userId, {
           type: "error",
@@ -237,23 +239,24 @@ class WebSocketService {
         });
       }
 
-      // Verify user is team member
+      // Verify user is team member - FIXED: Use members.userId instead of teamMember
       const team = await Team.findById(teamId);
-      if (!team || !team.members.some((m) => m.userId.toString() === userId)) {
+      if (!team || !team.teamMember.some((m) => m._id.toString() === userId)) {
         return this.sendToUser(userId, {
           type: "error",
           message: "Not authorized to send messages to this team",
         });
       }
 
-      if (!team.chatEnabled) {
+      // Optional: Check if chat is enabled
+      if (team.chatEnabled === false) {
         return this.sendToUser(userId, {
           type: "error",
           message: "Chat is disabled for this team",
         });
       }
 
-      // Rate limiting check (simple implementation)
+      // Rate limiting check
       const rateLimitKey = `${userId}:${teamId}`;
       if (this.isRateLimited(rateLimitKey)) {
         return this.sendToUser(userId, {
@@ -262,7 +265,7 @@ class WebSocketService {
         });
       }
 
-      // Create message
+      // Create new message
       const newMessage = new Message({
         teamId,
         senderId: userId,
@@ -272,22 +275,24 @@ class WebSocketService {
 
       await newMessage.save();
 
-      // Populate sender info
-      await newMessage.populate("senderId", "name email");
+      // Populate sender info - FIXED: More reliable population
+      const populatedMessage = await Message.findById(newMessage._id)
+        .populate("senderId", "name email")
+        .exec();
 
-      // Broadcast to all team members
-      const teamMemberIds = team.members.map((m) => m.userId.toString());
+      // Broadcast to all team members - FIXED: Use members.userId instead of teamMember
+      const teamMemberIds = team.teamMember.map((m) => m._id.toString());
       this.broadcastToUsers(teamMemberIds, {
         type: "team.message",
         teamId,
         message: {
-          _id: newMessage._id,
-          text: newMessage.text,
+          _id: populatedMessage._id,
+          text: populatedMessage.text,
           sender: {
-            _id: newMessage.senderId._id,
-            name: newMessage.senderId.name,
+            _id: populatedMessage.senderId._id,
+            name: populatedMessage.senderId.name,
           },
-          createdAt: newMessage.createdAt,
+          createdAt: populatedMessage.createdAt,
         },
       });
     } catch (err) {
@@ -366,9 +371,7 @@ class WebSocketService {
     }
   }
 
-  // Rate limiting helper (simple in-memory implementation)
-  rateLimitMap = new Map();
-
+  // Rate limiting helper
   isRateLimited(key) {
     const now = Date.now();
     const windowMs = 60000; // 1 minute
@@ -483,8 +486,8 @@ class WebSocketService {
 
   sendToUser(userId, data) {
     const client = this.clients.get(userId);
-    // CORRECTED: Use WebSocketServer instead of WebSocket
-    if (!client || client.readyState !== this.wss.OPEN) return false;
+    // FIXED: Use WebSocket.OPEN instead of this.wss.OPEN
+    if (!client || client.readyState !== WebSocket.OPEN) return false;
 
     try {
       client.send(JSON.stringify(data));
@@ -680,9 +683,7 @@ class WebSocketService {
   }
 
   // Rate limiting for messages
-  messageRateLimit = new Map();
-
-  isRateLimited(key) {
+  isMessageRateLimited(key) {
     const now = Date.now();
     const windowMs = 60000; // 1 minute
     const maxMessages = 20; // 20 messages per minute per team
@@ -720,8 +721,7 @@ class WebSocketService {
     return teamMemberIds.filter(
       (userId) =>
         this.clients.has(userId) &&
-        // CORRECTED: Use WebSocketServer instead of WebSocket
-        this.clients.get(userId).readyState === this.wss.OPEN
+        this.clients.get(userId).readyState === WebSocket.OPEN // FIXED: Use WebSocket.OPEN
     );
   }
 
@@ -764,6 +764,7 @@ class WebSocketService {
       }
     });
   }
+
   // Add cleanup mechanism
   startCleanupInterval() {
     setInterval(() => {
@@ -775,7 +776,7 @@ class WebSocketService {
   cleanupStaleClients() {
     const now = Date.now();
     this.clients.forEach((ws, userId) => {
-      if (now - ws.lastActivity > 3600000) {
+      if (now - (ws.lastActivity || now) > 3600000) {
         // 1 hour inactivity
         ws.close(1001, "Connection stale");
         this.removeClient(userId);
@@ -812,4 +813,5 @@ mongoose.connection.once("open", () => {
   console.log("Starting scheduler...");
   startScheduler(webSocketService);
 });
+
 export default webSocketService;

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Hackathon from "../models/hackthon.model.js";
 import User from "../models/user.model.js";
 
@@ -210,7 +211,7 @@ export const createHackathon = async (req, res) => {
     if (regDeadline > now) {
       status = "registration_open";
     } else if (start > now) {
-      status = "registration_open";
+      status = "upcoming";
     } else if (end > now) {
       status = "ongoing";
     } else {
@@ -223,6 +224,7 @@ export const createHackathon = async (req, res) => {
       "68c6ae4d7015d3dcc9bc58ab",
       "68c6a9147015d3dcc9bc586c",
     ];
+
     const hackathon = await Hackathon.create({
       title,
       description,
@@ -250,7 +252,13 @@ export const createHackathon = async (req, res) => {
       socialLinks,
       status,
     });
-
+    await Promise.all(
+      participants.map((id) =>
+        User.findByIdAndUpdate(new mongoose.Types.ObjectId(id), {
+          currentHackathonId: hackathon._id,
+        })
+      )
+    );
     res.status(201).json({
       success: true,
       message: "Hackathon created successfully",
