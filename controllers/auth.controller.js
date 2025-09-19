@@ -4,7 +4,7 @@ import crypto from "crypto";
 import dotenv from "dotenv";
 dotenv.config({ path: "../config/config.env" });
 import { OAuth2Client } from "google-auth-library";
-import sendMail from "../utils/sendMail.js";
+//import sendMail from "../utils/sendMail.js";
 import { sendResponse, ErrorCodes } from "../utils/responseHandler.js";
 import {
   ValidationError,
@@ -63,12 +63,12 @@ const sendVerificationEmail = async (user) => {
       <p>If you didn't create this account, please ignore this email.</p>
     `;
 
-    await sendMail({
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: user.email,
-      subject: "Verify Your Email Address",
-      html: message,
-    });
+    // await sendMail({
+    //   from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+    //   to: user.email,
+    //   subject: "Verify Your Email Address",
+    //   html: message,
+    // });
   } catch (error) {
     console.error("Email verification send error:", error);
     throw new AppError(
@@ -105,12 +105,13 @@ export const register = async (req, res, next) => {
     // Send welcome email
     try {
       const data = { user: { name: user.name, email: user.email } };
-      const res = await sendMail({
-        email: user.email,
-        subject: "Mail from HackMate",
-        data,
-        template: "welcome_mail.ejs",
-      });
+      const res = true;
+      // const res = await sendMail({
+      //   email: user.email,
+      //   subject: "Mail from HackMate",
+      //   data,
+      //   template: "welcome_mail.ejs",
+      // });
       console.log("EMAIL : ", res);
     } catch (emailError) {
       // Log email error but don't fail the registration
@@ -369,12 +370,12 @@ export const forgotPassword = async (req, res, next) => {
     `;
 
     try {
-      await sendMail({
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-        to: user.email,
-        subject: "Password Reset Request",
-        html: message,
-      });
+      // await sendMail({
+      //   from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      //   to: user.email,
+      //   subject: "Password Reset Request",
+      //   html: message,
+      // });
 
       sendResponse(
         res,
