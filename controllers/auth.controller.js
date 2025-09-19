@@ -11,7 +11,7 @@ import {
   UnauthorizedError,
   NotFoundError,
   AppError,
-} from "../utils/AppError.js";
+} from "../utils/appError.js";
 
 // Initialize Google OAuth client
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
