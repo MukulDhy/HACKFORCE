@@ -1,4 +1,4 @@
-import sendMail from "../utils/sendMail.js";
+// import sendMail from "../utils/sendMail.js";
 
 export const sendTeamNotification = async ({
   email,
@@ -20,12 +20,12 @@ export const sendTeamNotification = async ({
     };
 
     // Send email using your existing sendMail function
-    await sendMail({
-      email,
-      subject,
-      data,
-      template: "teamAssignment.ejs", // We'll create this template next
-    });
+    // await sendMail({
+    //   email,
+    //   subject,
+    //   data,
+    //   template: "teamAssignment.ejs", // We'll create this template next
+    // });
 
     console.log(`Team notification email sent to ${email}`);
     return true;
